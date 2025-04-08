@@ -1,0 +1,8 @@
+numpy>=1.19.0
+opencv-python>=4.5.0
+keras==2.10.0
+moviepy>=1.0.3
+decorator>=4.4.2
+imageio>=2.9.0
+deepface>=0.0.75
+mtcnn>=0.1.0 
