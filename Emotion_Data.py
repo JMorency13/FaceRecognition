@@ -1,19 +1,108 @@
 import numpy as np
 import cv2
-from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import Dense, Dropout, Flatten, Conv2D, MaxPooling2D
-from tensorflow.keras.optimizers import Adam
-from tensorflow.keras.preprocessing.image import ImageDataGenerator
+from keras.models import Sequential
+from keras.layers import Dense, Dropout, Flatten, Conv2D, MaxPooling2D
+from keras.optimizers import Adam
+from tensorflow.keras.preprocessing.image import ImageDataGenerator  # Updated import
 import os
 from sklearn.utils.class_weight import compute_class_weight
-import numpy as np
+import time
+import random
+import json
+
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+
+class ContentRecommendationEngine:
+    """
+    A class to handle adaptive content recommendation based on detected emotions and user reactions.
+    """
+
+    def __init__(self, media_library_path='media_library.json'):
+        """
+        Initialize the recommendation engine with:
+        - Media library containing categorized videos
+        """
+        self.media_library_path = media_library_path
+        self.media_library = self.load_media_library()
+        self.user_preferences = {}
+
+    def load_media_library(self):
+        """
+        Load the media library from a JSON file containing categorized videos.
+
+        Returns:
+            A dictionary with categories as keys and lists of video URLs as values.
+        """
+        if not os.path.exists(self.media_library_path):
+            raise FileNotFoundError(f"Media library file not found: {self.media_library_path}")
+
+        with open(self.media_library_path, 'r') as file:
+            media_library = json.load(file)
+
+        return media_library
+
+    def get_recommendation(self, detected_emotion):
+        """
+        Get a video recommendation based on the detected emotion.
+
+        Args:
+            detected_emotion: The detected emotion (e.g., "Happy", "Sad").
+
+        Returns:
+            A video URL selected from the relevant category.
+        """
+        category = self.map_emotion_to_category(detected_emotion)
+        videos = self.media_library.get(category, [])
+
+        if not videos:
+            return None
+
+        return random.choice(videos)
+
+    def map_emotion_to_category(self, emotion):
+        """
+        Map detected emotions to video categories.
+
+        Args:
+            emotion: The detected emotion (e.g., "Happy", "Sad").
+
+        Returns:
+            The corresponding category (e.g., "comedy", "nature").
+        """
+        emotion_category_map = {
+            "Happy": "comedy",
+            "Sad": "nature",
+            "Angry": "animals",
+            "Fearful": "nature",
+            "Surprised": "comedy",
+            "Neutral": "nature",
+            "Disgusted": "animals"
+        }
+        return emotion_category_map.get(emotion, "nature")
+
+    def update_user_preferences(self, user_id, emotion, feedback):
+        """
+        Update user preferences based on feedback.
+
+        Args:
+            user_id: The ID of the user.
+            emotion: The detected emotion.
+            feedback: The feedback provided by the user (e.g., "like", "dislike").
+        """
+        if user_id not in self.user_preferences:
+            self.user_preferences[user_id] = {}
+
+        if emotion not in self.user_preferences[user_id]:
+            self.user_preferences[user_id][emotion] = {"like": 0, "dislike": 0}
+
+        self.user_preferences[user_id][emotion][feedback] += 1
+
 
 class EmotionDetector:
     """
     A class to handle real-time emotion detection using a custom CNN model.
     """
-    
+
     def __init__(self, use_pretrained=True):
         """
         Initialize the emotion detector with necessary components:
@@ -24,10 +113,6 @@ class EmotionDetector:
         """
         # Initialize webcam
         self.video_capture = cv2.VideoCapture(0)
-        
-        # Performance tracking
-        self.fps = 0
-        self.frame_time = 0
         
         # Load the face cascade classifier
         self.face_cascade = cv2.CascadeClassifier(
@@ -55,7 +140,7 @@ class EmotionDetector:
             "Neutral": (255, 255, 255),# White
             "Disgusted": (128, 0, 128) # Purple
         }
-        
+
         # Initialize and load the model
         self.model = self.create_model()
         if use_pretrained:
@@ -64,6 +149,15 @@ class EmotionDetector:
                 print("Loaded pre-trained model")
             except:
                 print("No pre-trained model found, initializing new model")
+
+        # Initialize content recommendation engine
+        self.recommendation_engine = ContentRecommendationEngine()
+        self.user_id = "user123"  # Example user ID
+        self.current_emotion = None
+        self.start_time = time.time()
+        # Store recommended videos and feedback
+        self.recommended_videos = {emotion: [] for emotion in self.emotion_dict.values()}
+        self.recommendation_active = True
 
     def create_model(self):
         """Create and return the CNN model architecture"""
@@ -127,7 +221,22 @@ class EmotionDetector:
             color = self.emotion_colors.get(emotion, (255, 255, 255))
             cv2.putText(frame, emotion, (x+20, y-60),
                        cv2.FONT_HERSHEY_SIMPLEX, 1, color, 2, cv2.LINE_AA)
-        
+
+            # Handle video recommendation every 20 seconds
+            if self.recommendation_active and (time.time() - self.start_time) >= 20:
+                self.recommendation_active = False
+                recommended_video = self.recommendation_engine.get_recommendation(emotion)
+                if recommended_video:
+                    print(f"\nFor emotion '{emotion}', recommended video: {recommended_video}")
+                    feedback = input("Did this video improve your mood? (yes/no): ").strip().lower()
+                    feedback_status = "Yes" if feedback == "yes" else "No"
+                    self.recommended_videos[emotion].append((recommended_video, feedback_status))
+                    self.recommendation_engine.update_user_preferences(
+                        self.user_id, emotion, "like" if feedback == "yes" else "dislike"
+                    )
+                self.start_time = time.time()
+                self.recommendation_active = True
+
         return frame
 
     def run(self):
@@ -148,7 +257,7 @@ class EmotionDetector:
                 # Display the processed frame
                 cv2.imshow('Emotion Detection', 
                           cv2.resize(processed_frame, (1600,960),
-                                   interpolation = cv2.INTER_CUBIC))
+                                     interpolation = cv2.INTER_CUBIC))
                 
                 # Break loop on 'q' press
                 if cv2.waitKey(1) & 0xFF == ord('q'):
@@ -158,68 +267,17 @@ class EmotionDetector:
             # Clean up
             self.video_capture.release()
             cv2.destroyAllWindows()
+            self.display_recommendation_summary()
 
-    def fine_tune(self, train_dir, validation_dir, epochs=10, callbacks=None):
-        # Data augmentation for training
-        train_datagen = ImageDataGenerator(
-            rescale=1./255,
-            rotation_range=20,
-            width_shift_range=0.2,
-            height_shift_range=0.2,
-            horizontal_flip=True
-        )
-
-        # Only rescaling for validation
-        val_datagen = ImageDataGenerator(rescale=1./255)
-
-        # Load data
-        train_generator = train_datagen.flow_from_directory(
-            train_dir,
-            target_size=(48, 48),
-            batch_size=32,
-            color_mode="grayscale",
-            class_mode='categorical'
-        )
-
-        validation_generator = val_datagen.flow_from_directory(
-            validation_dir,
-            target_size=(48, 48),
-            batch_size=32,
-            color_mode="grayscale",
-            class_mode='categorical'
-        )
-
-        # Get class indices and actual labels
-        class_indices = train_generator.class_indices
-        labels = train_generator.classes
-
-        # Compute class weights
-        class_weights = compute_class_weight(
-            class_weight='balanced',
-            classes=np.unique(labels),
-            y=labels
-        )
-        class_weights_dict = dict(enumerate(class_weights))
-        print("Class weights:", class_weights_dict)
-
-        # Compile and train
-        self.model.compile(
-            optimizer=Adam(learning_rate=0.0001),
-            loss='categorical_crossentropy',
-            metrics=['accuracy']
-        )
-
-        # Fine-tune the model with callbacks
-        self.model.fit(
-            train_generator,
-            epochs=epochs,
-            validation_data=validation_generator,
-            class_weight=class_weights_dict,
-            callbacks=callbacks  # Pass the callbacks here
-        )
-
-        # Save the fine-tuned model
-        self.model.save_weights('model_fine_tuned.h5')
+    def display_recommendation_summary(self):
+        """
+        Display a summary of recommended videos based on detected emotions and user feedback
+        """
+        print("\nRecommendation Summary:")
+        for emotion, video_feedback_list in self.recommended_videos.items():
+            print(f"\nEmotion: {emotion}")
+            for video, feedback in video_feedback_list:
+                print(f"  - Video: {video}, Liked: {feedback}")
 
 def main():
     """
@@ -232,4 +290,4 @@ def main():
         print(f"An error occurred: {str(e)}")
 
 if __name__ == "__main__":
-    main() 
+    main()

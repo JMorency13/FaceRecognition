@@ -1,7 +1,7 @@
 import streamlit as st
 import cv2
 import numpy as np
-from Emotion_Data import EmotionDetector
+from Emotion_Data import EmotionDetector, ContentRecommendationEngine
 import time
 
 def get_video_for_emotion(emotion):
@@ -26,6 +26,9 @@ def main():
         
     if 'current_emotion' not in st.session_state:
         st.session_state.current_emotion = "Neutral"
+        
+    if 'last_update_time' not in st.session_state:
+        st.session_state.last_update_time = time.time()
 
     # Custom CSS for styling
     st.markdown("""
@@ -68,7 +71,8 @@ def main():
     with col1:
         st.markdown('<div class="video-container">', unsafe_allow_html=True)
         # Display video based on emotion
-        st.video(get_video_for_emotion(st.session_state.current_emotion))
+        current_video = get_video_for_emotion(st.session_state.current_emotion)
+        st.video(current_video)
         st.markdown('</div>', unsafe_allow_html=True)
 
     with col2:
@@ -89,9 +93,12 @@ def main():
                 # Display the processed frame
                 st.image(processed_frame_rgb, channels="RGB", use_container_width=True)
                 
-                # Get the current emotion (you'll need to modify EmotionDetector to expose this)
-                # For now, we'll keep the current emotion
-                # st.session_state.current_emotion = detected_emotion
+                # Update emotion every 20 seconds
+                current_time = time.time()
+                if current_time - st.session_state.last_update_time >= 20:
+                    st.session_state.current_emotion = st.session_state.emotion_detector.current_emotion
+                    st.session_state.last_update_time = current_time
+                    st.rerun()
             else:
                 st.error("Failed to capture frame from webcam")
         else:
@@ -102,7 +109,7 @@ def main():
         # Display detected emotion
         st.markdown(f"""
             <div class="emotion-box">
-                Detected Emotion: {st.session_state.current_emotion}
+                Current Emotion: {st.session_state.current_emotion}
             </div>
         """, unsafe_allow_html=True)
         st.markdown('</div>', unsafe_allow_html=True)
