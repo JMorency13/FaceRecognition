@@ -6,3 +6,4 @@ decorator>=4.4.2
 imageio>=2.9.0
 deepface>=0.0.75
 mtcnn>=0.1.0 
+streamlit
