@@ -17,7 +17,7 @@ class ContentRecommendationEngine:
     A class to handle adaptive content recommendation based on detected emotions and user reactions.
     """
 
-    def __init__(self, media_library_path='media_library.json'):
+    def __init__(self, media_library_path='project/media_library.json'):
         """
         Initialize the recommendation engine with:
         - Media library containing categorized videos

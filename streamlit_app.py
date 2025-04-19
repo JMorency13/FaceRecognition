@@ -17,6 +17,17 @@ def get_video_for_emotion(emotion):
     }
     return video_map.get(emotion, video_map["Happy"])  # Default to Happy video
 
+def render_youtube_video(url):
+    embed_url = url.replace("watch?v=", "embed/")
+    st.markdown(
+        f"""
+<iframe width="100%" height="315"
+        src="{embed_url}?autoplay=1&mute=1"
+frameborder="0"
+allow="autoplay; encrypted-media" allowfullscreen></iframe>
+        """,
+        unsafe_allow_html=True
+    )
 def main():
     st.set_page_config(layout="wide", page_title="Emotion-Based Video Player")
 
@@ -72,7 +83,9 @@ def main():
         st.markdown('<div class="video-container">', unsafe_allow_html=True)
         # Display video based on emotion
         current_video = get_video_for_emotion(st.session_state.current_emotion)
-        st.video(current_video)
+        render_youtube_video(current_video)
+        st.write("Detected Emotion:", st.session_state.current_emotion)
+        st.write("Video URL:", current_video)
         st.markdown('</div>', unsafe_allow_html=True)
 
     with col2:
@@ -93,11 +106,12 @@ def main():
                 # Display the processed frame
                 st.image(processed_frame_rgb, channels="RGB", use_container_width=True)
                 
-                # Update emotion every 20 seconds
-                current_time = time.time()
-                if current_time - st.session_state.last_update_time >= 20:
-                    st.session_state.current_emotion = st.session_state.emotion_detector.current_emotion
-                    st.session_state.last_update_time = current_time
+                # Always get the latest detected emotion
+                new_emotion = st.session_state.emotion_detector.current_emotion
+
+                # If it's different from the current state, update and rerun
+                if new_emotion != st.session_state.current_emotion:
+                    st.session_state.current_emotion = new_emotion
                     st.rerun()
             else:
                 st.error("Failed to capture frame from webcam")

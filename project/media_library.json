@@ -1,17 +1,15 @@
 {
     "comedy": [
-        "videos/comedy/comedy1.mp4",
-        "videos/comedy/comedy2.mp4",
-        "videos/comedy/comedy3.mp4"
+        "project/videos/comedy/comedy1.mp4",
+        "project/videos/comedy/comedy2.mp4",
+        "project/videos/comedy/comedy3.mp4"
     ],
     "nature": [
-        "videos/nature/nature1.mp4",
-        "videos/nature/nature2.mp4",
-        "videos/nature/nature3.mp4"
+        "project/videos/nature/nature4.mp4"
     ],
     "animals": [
-        "videos/animals/animals1.mp4",
-        "videos/animals/animals2.mp4",
-        "videos/animals/animals3.mp4"
+        "animals/animals1.mp4",
+        "animals/animals2.mp4",
+        "animals/animals3.mp4"
     ]
 }
