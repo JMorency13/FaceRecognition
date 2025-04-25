@@ -38,7 +38,9 @@ class ContentRecommendationEngine:
             "Sad": "nature",
             "Angry": "animals",
             "Fearful": "nature",
+            "Surprised": "comedy",
             "Neutral": "comedy",
+            "Disgusted": "animals"
         }
         return emotion_category_map.get(emotion, "nature")
 
