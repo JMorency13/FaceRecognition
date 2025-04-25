@@ -35,12 +35,10 @@ class EmotionDetector:
         # Emotion dictionary
         self.emotion_dict = {
             0: "Angry", 
-            1: "Disgusted", 
             2: "Fearful", 
             3: "Happy", 
             4: "Neutral", 
             5: "Sad", 
-            6: "Surprised"
         }
         
         # Dictionary to store emotion colors for visualization
@@ -49,9 +47,7 @@ class EmotionDetector:
             "Sad": (0, 0, 255),       # Red
             "Angry": (0, 0, 255),     # Red
             "Fearful": (255, 0, 0),   # Blue
-            "Surprised": (255, 255, 0),# Yellow
             "Neutral": (255, 255, 255),# White
-            "Disgusted": (128, 0, 128) # Purple
         }
         
         # Initialize and load the model
